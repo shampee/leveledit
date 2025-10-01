@@ -96,7 +96,7 @@ static Texture2D generate_model_thumbnail(const char* path) {
   } // TEXTURE MODE =================================
   UnloadModel(model);
 
-  // Make a copy of the texture form the target
+  // Make a copy of the texture from the target
   DEBUG("making copy of texture: %dx%d",
         target.texture.width,
         target.texture.height);
@@ -129,7 +129,7 @@ void assetbrowser_load(Arena* arena, AssetBrowser* browser, String8 path) {
   while ((entry = readdir(dir)) && browser->count < MAX_ASSETS) {
     if (entry->d_type == DT_REG) { // only accept regular files
       AssetEntry* e = &browser->entries[browser->count];
-      e->name = str8_cstring(entry->d_name);
+      e->name = str8_copy(arena, str8_cstring(entry->d_name));
 
       e->type = ASSET_OTHER;
       e->has_preview = false;
@@ -137,7 +137,6 @@ void assetbrowser_load(Arena* arena, AssetBrowser* browser, String8 path) {
       if (str8_ends_with(e->name, str8_lit(".png"), 0)
       ||  str8_ends_with(e->name, str8_lit(".jpg"), 0)) {
         DEBUG("loading image");
-        Temp scratch = scratch_begin(arena);
         String8 full_path = str8_cat(arena, realpath, e->name);
         Image img = LoadImage((char*)full_path.str);
         if (img.data) {
@@ -145,18 +144,17 @@ void assetbrowser_load(Arena* arena, AssetBrowser* browser, String8 path) {
           ImageFlipVertical(&img);
           e->preview = LoadTextureFromImage(img);
           e->has_preview = true;
+          e->path = full_path;
           UnloadImage(img);
         }
-        scratch_end(&scratch);
       } else if (str8_ends_with(e->name, str8_lit(".obj"), 0)
              ||  str8_ends_with(e->name, str8_lit(".glb"), 0)) {
         DEBUG("loading model");
-        Temp scratch = scratch_begin(arena);
-        String8 full_path = str8_cat(arena, path, e->name);
+        String8 full_path = str8_cat(arena, realpath, e->name);
         e->preview = generate_model_thumbnail((char*)full_path.str);
+        e->path = full_path;
         e->has_preview = (e->preview.id > 0);
         e->type = ASSET_MODEL;
-        scratch_end(&scratch);
       }
       browser->count++;
     }
@@ -172,7 +170,7 @@ void assetbrowser_unload(AssetBrowser* browser) {
     if (browser->entries[i].has_preview) {
       DEBUG("idx %lu has preview of size %dx%d",
             i, browser->entries[i].preview.width, browser->entries[i].preview.height);
-      UnloadTexture((Texture2D)browser->entries[i].preview);
+      UnloadTexture(browser->entries[i].preview);
       browser->entries[i].has_preview = false;
     }
   }
@@ -245,7 +243,7 @@ void ui_toolbar(EditorState* ed) {
   nk_layout_row_dynamic(ctx, 30, 1);
   if (nk_button_label(ctx, "Place")) {
     ed->current_tool = TOOL_PLACE;
-    // TODO: implement placing
+    // TODO: implement transforming
   }
   if (nk_button_label(ctx, "Transform")) {
     ed->current_tool = TOOL_TRANSFORM;
@@ -311,7 +309,7 @@ void ui_assetbrowser(EditorState* ed) {
 
     for (usize i = 0; i < browser->count; i++) {
       AssetEntry* e = &browser->entries[i];
-      struct nk_rect bounds = nk_widget_bounds(ctx);
+      /* struct nk_rect bounds = nk_widget_bounds(ctx); */
       if (e->has_preview) {
         // draw texture
         // FIXME: aspect ratio
@@ -321,13 +319,25 @@ void ui_assetbrowser(EditorState* ed) {
         /* bool is_selected = browser->selected == i; */
         struct nk_image img = TextureToNuklear(e->preview);
         if (nk_button_image(ctx, img)) {
+          // NOTE: let's manage assets better
           browser->selected = i;
+          ed->selected_asset = e->path;
           DEBUG("Selected asset: %s", (char *)e->name.str);
+          DEBUG("Selected path: %s", (char *)e->path.str);
+
+          Entity* new_entity = entity_store_add(ed->entity_store);
+          new_entity->name = e->name;
+          ed->selected_entity = new_entity->id;
+          DEBUG("Selected entity: %lu", ed->selected_entity);
+          new_entity->model = push_one(ed->entity_store->arena, Model);
+          *new_entity->model = LoadModel((char*)e->path.str);
         }
       } else {
+        // TODO: cleanup
         bool is_selected = browser->selected == i;
         if (nk_selectable_label(ctx, "?", NK_TEXT_ALIGN_MIDDLE, &is_selected)) {
           browser->selected = i;
+          ed->selected_asset = e->path;
           DEBUG("Selected asset: %s", (char *)e->name.str);
         }
         /* DrawRectangle(bounds.x, bounds.y, bounds.w, bounds.h - 20, DARKGRAY); */

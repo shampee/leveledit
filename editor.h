@@ -21,6 +21,7 @@ typedef enum {
 
 typedef struct {
   String8 name;
+  String8 path;
   AssetType type;
   Texture2D preview;
   b32 has_preview;
@@ -47,13 +48,20 @@ typedef struct {
 } UIVisibility;
 
 typedef struct {
+  Vec2 position;
+  Texture texture;
+} Cursor;
+
+typedef struct {
   Arena* arena;
   HashTable* ht;
   struct nk_context* nk_ctx;
+  Cursor cursor;
   UIVisibility* vis;
   AssetBrowser* browser;
   EntityStore* entity_store;
   EntityID selected_entity; 
+  String8 selected_asset;
   EditorTool current_tool;
 } EditorState;
 

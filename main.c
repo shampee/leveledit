@@ -15,7 +15,7 @@ static void handle_keyboard(EditorState* ed) {
 
 i32 main(i32 argc, char* argv[]) {
   Arena arena = {0};
-  Arena hash_arena = {0};
+  Arena entity_arena = {0};
   HashTable ht = {0};
   EditorState ed = {0};
   AssetBrowser browser = {0};
@@ -31,23 +31,20 @@ i32 main(i32 argc, char* argv[]) {
   ed.nk_ctx = InitNuklear(FONT_SIZE);
 
   arena_init(&arena, MB(1));
-  arena_init(&hash_arena, MB(1));
-  hashtable_init(&hash_arena, &ht, KB(64));
-  entity_store_init(&arena, &store, KB(1), KB(1));
+  arena_init(&entity_arena, MB(1));
+  entity_store_init(&entity_arena, &store, KB(512), KB(512));
   ed.entity_store = &store;
   ed.arena = &arena;
   ed.ht = &ht;
   ed.vis = &vis;
 
+  /* LoadTextureFromImage(()) */
+  Image arrow = LoadImage("resources/cursors/Dark/Arrows/Arrow2.png");
+  ImageResize(&arrow, arrow.width/2, arrow.height/2);
+  ed.cursor.texture = LoadTextureFromImage(arrow);
 
-  Entity* e1 = entity_store_add(ed.entity_store);
-  Entity* e2 = entity_store_add(ed.entity_store);
-  Entity* e3 = entity_store_add(ed.entity_store);
-  e1->name = str8_lit("ent1");
-  e2->name = str8_lit("ent2");
-  e3->name = str8_lit("ent3");
 
-  assetbrowser_load(ed.arena, &browser, str8_lit("resources/assets/"));
+  assetbrowser_load(ed.arena, &browser, str8_lit("resources/assets"));
   ed.browser = &browser;
 
   struct nk_context* nk = ed.nk_ctx;
@@ -64,14 +61,14 @@ i32 main(i32 argc, char* argv[]) {
 
   // Ground quad
   Vec3 g0 = (Vec3){-50.0f, 0.0f, -50.0f};
-  Vec3 g1 = (Vec3){-50.0f, 0.0f, 50.0f};
-  Vec3 g2 = (Vec3){50.0f, 0.0f, 50.0f};
-  Vec3 g3 = (Vec3){50.0f, 0.0f, -50.0f};
+  Vec3 g1 = (Vec3){-50.0f, 0.0f,  50.0f};
+  Vec3 g2 = (Vec3){ 50.0f, 0.0f,  50.0f};
+  Vec3 g3 = (Vec3){ 50.0f, 0.0f, -50.0f};
 
   // Test triangle
   Vec3 ta = (Vec3){-25.0f, 0.5f, 0.0f};
-  Vec3 tb = (Vec3){-4.0f, 2.5f, 1.0f};
-  Vec3 tc = (Vec3){-8.0f, 6.5f, 0.0f};
+  Vec3 tb = (Vec3){ -4.0f, 2.5f, 1.0f};
+  Vec3 tc = (Vec3){ -8.0f, 6.5f, 0.0f};
 
   Vec3 bary = {0.0f, 0.0f, 0.0f};
 
@@ -86,6 +83,7 @@ i32 main(i32 argc, char* argv[]) {
       if (IsCursorHidden()) EnableCursor();
       else DisableCursor();
     }
+    ed.cursor.position = GetMousePosition();
     // Keyboard -----------------------------------
     handle_keyboard(&ed);
 
@@ -148,6 +146,29 @@ i32 main(i32 argc, char* argv[]) {
         normalEnd.z = collision.point.z + collision.normal.z;
 
         DrawLine3D(collision.point, normalEnd, RED);
+
+        switch (ed.current_tool) {
+        case TOOL_PLACE:
+          if (ed.selected_entity > 0) {
+            DEBUG("list count: %lu", ed.entity_store->list_count);
+            DEBUG("list next id: %lu", ed.entity_store->next_id);
+            Entity* ent = entity_store_find(ed.entity_store, ed.selected_entity);
+            if (ent->model) {
+              DEBUG("found model, drawing");
+              DrawModel(*ent->model, collision.point, 1, WHITE);
+            }
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+              // TODO: placing
+              // this would need serialization
+            }
+          }
+          break;
+        case TOOL_TRANSFORM:
+          DrawText("TRANSFORM MODE", 10, GetScreenHeight()-40, 10, BLACK);
+          break;
+        default:
+          break;
+        }
       }
 
       DrawRay(ray, MAROON);
@@ -176,10 +197,21 @@ i32 main(i32 argc, char* argv[]) {
                    10, ypos + 45, 10, BLACK);
         }
       }
+      switch (ed.current_tool) {
+      case TOOL_PLACE:
+          DrawText("PLACE MODE", 10, GetScreenHeight()-40, 10, BLACK);
+          break;
+      case TOOL_TRANSFORM:
+          DrawText("TRANSFORM MODE", 10, GetScreenHeight()-40, 10, BLACK);
+        break;
+      default:
+        break;
+      }
 
       DrawFPS(10, GetScreenHeight()-20);
 
       DrawNuklear(nk);
+      DrawTexture(ed.cursor.texture, ed.cursor.position.x, ed.cursor.position.y, BLACK);
       EndDrawing();
     } // Draw ---------------------------------------------
   }
@@ -188,7 +220,7 @@ i32 main(i32 argc, char* argv[]) {
 
   assetbrowser_unload(&browser);
   UnloadNuklear(nk);
-  arena_free(&hash_arena);
+  arena_free(&entity_arena);
   arena_free(&arena);
   return 0;
 }
