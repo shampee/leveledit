@@ -152,9 +152,13 @@ i32 main(i32 argc, char* argv[]) {
             ed.tool_params.scale += GetMouseWheelMove() * ed.tool_params.scroll_speed;
             /* Entity* ent = entity_store_find(ed.entity_store, ed.selected_entity); */
             Model* model = ed.browser->entries[ed.browser->selected].model;
-            if (!model) ERROR("no model"); 
-            if (model) {
-              DrawModel(*model, collision.point, ed.tool_params.scale, WHITE);
+            if (!model) {
+              ERROR("no model");
+              break;
+            }
+            DrawModel(*model, collision.point, ed.tool_params.scale, WHITE);
+            if (!ed.tool_params.about_to_place && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+              ed.tool_params.about_to_place = true;
             }
             if (ed.tool_params.about_to_place) {
               if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {

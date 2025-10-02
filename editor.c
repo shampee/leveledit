@@ -330,7 +330,6 @@ void ui_assetbrowser(EditorState* ed) {
           case ASSET_TEXTURE:
             break;
           case ASSET_MODEL:
-            ed->tool_params.about_to_place = true;
             if (!e->model) {
               DEBUG("allocating asset entry model");
               e->model = push_one(ed->arena, Model);
