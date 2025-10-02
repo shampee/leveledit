@@ -243,7 +243,7 @@ void ui_toolbar(EditorState* ed) {
   nk_layout_row_dynamic(ctx, 30, 1);
   if (nk_button_label(ctx, "Place")) {
     ed->current_tool = TOOL_PLACE;
-    // TODO: implement transforming
+    // TODO: implement placing
   }
   if (nk_button_label(ctx, "Transform")) {
     ed->current_tool = TOOL_TRANSFORM;
@@ -321,16 +321,26 @@ void ui_assetbrowser(EditorState* ed) {
         if (nk_button_image(ctx, img)) {
           // NOTE: let's manage assets better
           browser->selected = i;
+          DEBUG("browser selected idx %li", browser->selected);
           ed->selected_asset = e->path;
           DEBUG("Selected asset: %s", (char *)e->name.str);
           DEBUG("Selected path: %s", (char *)e->path.str);
 
-          Entity* new_entity = entity_store_add(ed->entity_store);
-          new_entity->name = e->name;
-          ed->selected_entity = new_entity->id;
-          DEBUG("Selected entity: %lu", ed->selected_entity);
-          new_entity->model = push_one(ed->entity_store->arena, Model);
-          *new_entity->model = LoadModel((char*)e->path.str);
+          switch (e->type) {
+          case ASSET_TEXTURE:
+            break;
+          case ASSET_MODEL:
+            ed->tool_params.about_to_place = true;
+            if (!e->model) {
+              DEBUG("allocating asset entry model");
+              e->model = push_one(ed->arena, Model);
+            }
+            DEBUG("loading model and copying into asset entry's model slot");
+            *e->model = LoadModel((char*)e->path.str);
+            break;
+          default:
+            break;
+          }
         }
       } else {
         // TODO: cleanup

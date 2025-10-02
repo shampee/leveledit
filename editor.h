@@ -26,6 +26,7 @@ typedef struct {
   Texture2D preview;
   b32 has_preview;
   time_t modified_time;
+  Model* model;
 } AssetEntry;
 
 typedef struct {
@@ -54,7 +55,6 @@ typedef struct {
 
 typedef struct {
   Arena* arena;
-  HashTable* ht;
   struct nk_context* nk_ctx;
   Cursor cursor;
   UIVisibility* vis;
@@ -63,6 +63,11 @@ typedef struct {
   EntityID selected_entity; 
   String8 selected_asset;
   EditorTool current_tool;
+  struct {
+    f32 scale;
+    i32 scroll_speed;
+    b32 about_to_place;
+  } tool_params;
 } EditorState;
 
 void entity_array_push(Arena* arena, EntityArray* arr, Entity entity);

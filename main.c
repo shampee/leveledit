@@ -16,7 +16,6 @@ static void handle_keyboard(EditorState* ed) {
 i32 main(i32 argc, char* argv[]) {
   Arena arena = {0};
   Arena entity_arena = {0};
-  HashTable ht = {0};
   EditorState ed = {0};
   AssetBrowser browser = {0};
   EntityStore store = {0};
@@ -26,19 +25,19 @@ i32 main(i32 argc, char* argv[]) {
       .show_inspector = false,
       .show_assetbrowser = false,
   };
+  ed.tool_params.scale = 1.0;
+  ed.tool_params.scroll_speed = 2;
 
   InitWindow(WIDTH, HEIGHT, "leveledit");
   ed.nk_ctx = InitNuklear(FONT_SIZE);
 
-  arena_init(&arena, MB(1));
   arena_init(&entity_arena, MB(1));
   entity_store_init(&entity_arena, &store, KB(512), KB(512));
+  arena_init(&arena, MB(1));
   ed.entity_store = &store;
   ed.arena = &arena;
-  ed.ht = &ht;
   ed.vis = &vis;
 
-  /* LoadTextureFromImage(()) */
   Image arrow = LoadImage("resources/cursors/Dark/Arrows/Arrow2.png");
   ImageResize(&arrow, arrow.width/2, arrow.height/2);
   ed.cursor.texture = LoadTextureFromImage(arrow);
@@ -149,17 +148,30 @@ i32 main(i32 argc, char* argv[]) {
 
         switch (ed.current_tool) {
         case TOOL_PLACE:
-          if (ed.selected_entity > 0) {
-            DEBUG("list count: %lu", ed.entity_store->list_count);
-            DEBUG("list next id: %lu", ed.entity_store->next_id);
-            Entity* ent = entity_store_find(ed.entity_store, ed.selected_entity);
-            if (ent->model) {
-              DEBUG("found model, drawing");
-              DrawModel(*ent->model, collision.point, 1, WHITE);
+          if (ed.browser->selected > -1) {
+            ed.tool_params.scale += GetMouseWheelMove() * ed.tool_params.scroll_speed;
+            /* Entity* ent = entity_store_find(ed.entity_store, ed.selected_entity); */
+            Model* model = ed.browser->entries[ed.browser->selected].model;
+            if (!model) ERROR("no model"); 
+            if (model) {
+              DrawModel(*model, collision.point, ed.tool_params.scale, WHITE);
             }
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-              // TODO: placing
-              // this would need serialization
+            if (ed.tool_params.about_to_place) {
+              if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                ed.tool_params.about_to_place = false;
+                DEBUG("placing model and creating entity");
+                Entity* new_entity = entity_store_add(ed.entity_store);
+                new_entity->name = ed.browser->entries[ed.browser->selected].name;
+                new_entity->model = push_one(ed.entity_store->arena, Model);
+                new_entity->model = ed.browser->entries[ed.browser->selected].model;
+                new_entity->transform.translation = collision.point;
+                new_entity->transform.rotation = v4f32(0, 0, 0, 1);
+                new_entity->transform.scale =
+                    v3(ed.tool_params.scale,
+                       ed.tool_params.scale,
+                       ed.tool_params.scale);
+                ed.selected_entity = new_entity->id;
+              }
             }
           }
           break;
@@ -169,6 +181,12 @@ i32 main(i32 argc, char* argv[]) {
         default:
           break;
         }
+      }
+
+      Entity* ent;
+      entity_foreach(ed.entity_store, ent) {
+        // TODO: translation, rotation, scaling
+        DrawModel(*ent->model, ent->transform.translation, 1, WHITE);
       }
 
       DrawRay(ray, MAROON);
