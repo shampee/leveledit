@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -std=c11 -pedantic -D_DEFAULT_SOURCE -Wno-missing-braces -Wmissing-field-initializers -pthread -Ithirdparty/raylib/include -L.
+CFLAGS = -Wall -std=c11 -pedantic -D_DEFAULT_SOURCE -Wno-missing-braces -Wmissing-field-initializers -pthread -Ithirdparty/raylib/include -L. -g
 LFLAGS = -lm -lGL -lpthread -lX11 -lraylib
 TARGET = leveledit
 
