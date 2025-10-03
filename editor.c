@@ -181,6 +181,7 @@ void ui_menubar(EditorState* ed) {
   struct nk_context* ctx = ed->nk_ctx;
   if (nk_begin(ctx, "MenuBar", nk_rect(0, 0, GetScreenWidth(), 25),
                NK_WINDOW_NO_SCROLLBAR | NK_WINDOW_BORDER)) {
+    ui_manager_register_window(ed->uiman, ctx, str8_lit("MenuBar"));
 
     nk_menubar_begin(ctx);
 
@@ -217,13 +218,21 @@ void ui_menubar(EditorState* ed) {
     nk_layout_row_push(ctx, 60);
     if (nk_menu_begin_label(ctx, "View", NK_TEXT_LEFT, nk_vec2(150, 200))) {
       nk_layout_row_dynamic(ctx, 20, 1);
-      if (nk_menu_item_label(ctx, ed->vis->show_toolbar ? "[x] Toolbar" : "[ ] Toolbar", NK_TEXT_LEFT))
+      if (nk_menu_item_label(ctx, ed->vis->show_toolbar
+                             ? "[x] Toolbar"
+                             : "[ ] Toolbar", NK_TEXT_LEFT))
         ed->vis->show_toolbar = !ed->vis->show_toolbar;
-      if (nk_menu_item_label(ctx, ed->vis->show_hierarchy ? "[x] Hierarchy" : "[ ] Hierarchy", NK_TEXT_LEFT))
+      if (nk_menu_item_label(ctx, ed->vis->show_hierarchy
+                             ? "[x] Hierarchy"
+                             : "[ ] Hierarchy", NK_TEXT_LEFT))
         ed->vis->show_hierarchy = !ed->vis->show_hierarchy;
-      if (nk_menu_item_label(ctx, ed->vis->show_inspector ? "[x] Inspector" : "[ ] Inspector", NK_TEXT_LEFT))
+      if (nk_menu_item_label(ctx, ed->vis->show_inspector
+                             ? "[x] Inspector"
+                             : "[ ] Inspector", NK_TEXT_LEFT))
         ed->vis->show_inspector = !ed->vis->show_inspector;
-      if (nk_menu_item_label(ctx, ed->vis->show_assetbrowser ? "[x] Assets" : "[ ] Assets", NK_TEXT_LEFT))
+      if (nk_menu_item_label(ctx, ed->vis->show_assetbrowser
+                             ? "[x] Assets Browser"
+                             : "[ ] Assets Browser", NK_TEXT_LEFT))
         ed->vis->show_assetbrowser = !ed->vis->show_assetbrowser;
       nk_menu_end(ctx);
     }
@@ -239,6 +248,7 @@ void ui_toolbar(EditorState* ed) {
   struct nk_rect rect = nk_rect(GetScreenWidth()-80-10, 10+25, 80, GetScreenHeight()-25-20);
   nk_flags flags = NK_WINDOW_BORDER|NK_WINDOW_NO_SCROLLBAR;
   nk_begin(ctx, "Toolbar", rect, flags);
+  ui_manager_register_window(ed->uiman, ctx, str8_lit("Toolbar"));
 
   nk_layout_row_dynamic(ctx, 30, 1);
   if (nk_button_label(ctx, "Place")) {
@@ -257,6 +267,7 @@ void ui_hierarchy(EditorState* ed) {
   struct nk_context* ctx = ed->nk_ctx;
   nk_begin(ctx, "Hierarchy", nk_rect(150, 10, 200, 400),
            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_TITLE|NK_WINDOW_SCALABLE);
+  ui_manager_register_window(ed->uiman, ctx, str8_lit("Hierarchy"));
 
   if (ed->entity_store->list_count > 0) {
     Entity* ent;
@@ -276,6 +287,7 @@ void ui_inspector(EditorState* ed) {
   struct nk_context* ctx = ed->nk_ctx;
   nk_begin(ctx, "Inspector", nk_rect(370, 10, 250, 400),
            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_TITLE|NK_WINDOW_SCALABLE);
+  ui_manager_register_window(ed->uiman, ctx, str8_lit("Inspector"));
 
   Entity* ent = entity_store_find(ed->entity_store, ed->selected_entity);
   if (ent) {
@@ -301,9 +313,10 @@ void ui_inspector(EditorState* ed) {
 void ui_assetbrowser(EditorState* ed) {
   struct nk_context* ctx = ed->nk_ctx;
   AssetBrowser* browser = ed->browser;
-  if (nk_begin(ctx, "Assets", nk_rect(50, 400, 500, 250),
+  if (nk_begin(ctx, "AssetsBrowser", nk_rect(50, 400, 500, 250),
                NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE
               |NK_WINDOW_TITLE|NK_WINDOW_CLOSABLE)) {
+    ui_manager_register_window(ed->uiman, ctx, str8_lit("AssetsBrowser"));
 
     nk_layout_row_dynamic(ctx, 80, 4); // 4 thumbnails per row
 
@@ -367,8 +380,31 @@ void ui_assetbrowser(EditorState* ed) {
 
 void ui_update_editor(EditorState* ed) {
   ui_menubar(ed);
+  ed->uiman->count = 0;
   if (ed->vis->show_toolbar)      ui_toolbar(ed);
   if (ed->vis->show_hierarchy)    ui_hierarchy(ed);
   if (ed->vis->show_inspector)    ui_inspector(ed);
   if (ed->vis->show_assetbrowser) ui_assetbrowser(ed);
+}
+
+void ui_manager_register_window(UIManager* man, struct nk_context* ctx, String8 name) {
+  if (man->count >= MAX_UI_WINDOWS) return;
+
+  UIWindow* w = &man->windows[man->count++];
+  w->bounds   = nk_window_get_bounds(ctx);
+  w->active   = true;
+  w->name     = name;
+}
+
+b32 ui_is_hovered(UIManager* man, struct nk_context* ctx) {
+  const struct nk_input* input = &ctx->input;
+
+  for (u64 i = 0; i < man->count; i++) {
+    UIWindow* w = &man->windows[i];
+    if (!w->active) continue;
+    if (nk_input_is_mouse_hovering_rect(input, w->bounds)) {
+      return true;
+    }
+  }
+  return false;
 }

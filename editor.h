@@ -6,6 +6,7 @@
 #include <dirent.h>
 
 #define MAX_ASSETS 256
+#define MAX_UI_WINDOWS 32
 
 typedef enum {
   TOOL_PLACE,
@@ -49,6 +50,17 @@ typedef struct {
 } UIVisibility;
 
 typedef struct {
+  struct nk_rect bounds;
+  b32 active;
+  String8 name;
+} UIWindow;
+
+typedef struct {
+  UIWindow windows[MAX_UI_WINDOWS];
+  u64 count;
+} UIManager;
+
+typedef struct {
   Vec2 position;
   Texture texture;
 } Cursor;
@@ -58,6 +70,7 @@ typedef struct {
   struct nk_context* nk_ctx;
   Cursor cursor;
   UIVisibility* vis;
+  UIManager* uiman;
   AssetBrowser* browser;
   EntityStore* entity_store;
   EntityID selected_entity; 
@@ -75,9 +88,15 @@ void entity_array_push(Arena* arena, EntityArray* arr, Entity entity);
 void assetbrowser_load(Arena* arena, AssetBrowser* browser, String8 path);
 void assetbrowser_unload(AssetBrowser* browser);
 
+void ui_manager_register_window(UIManager* man, struct nk_context* ctx, String8 name);
+b32  ui_is_hovered(UIManager* man, struct nk_context* ctx);
+
 void ui_assetbrowser(EditorState* ed);
 void ui_toolbar(EditorState* ed);
 void ui_hierarchy(EditorState* ed);
 void ui_inspector(EditorState* ed);
 void ui_update_editor(EditorState* ed);
+b32  ui_any_window_hovered(struct nk_context* ctx);
+b32  ui_is_capturing_input(struct nk_context* ctx);
+
 #endif

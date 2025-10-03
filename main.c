@@ -25,8 +25,11 @@ i32 main(i32 argc, char* argv[]) {
       .show_inspector = false,
       .show_assetbrowser = false,
   };
+  UIManager man = {0};
+  ed.uiman = &man;
   ed.tool_params.scale = 1.0;
   ed.tool_params.scroll_speed = 2;
+  ed.tool_params.about_to_place = false;
 
   InitWindow(WIDTH, HEIGHT, "leveledit");
   ed.nk_ctx = InitNuklear(FONT_SIZE);
@@ -75,7 +78,8 @@ i32 main(i32 argc, char* argv[]) {
 
   while (!WindowShouldClose())
   {
-    if (IsCursorHidden()) UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+    if (IsCursorHidden())
+      UpdateCamera(&camera, CAMERA_FIRST_PERSON);
 
     // Mouse -------------------------------------
     if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
@@ -154,16 +158,13 @@ i32 main(i32 argc, char* argv[]) {
             Model* model = ed.browser->entries[ed.browser->selected].model;
             if (!model) {
               ERROR("no model");
-              break;
+            } else {
+              DrawModel(*model, collision.point, ed.tool_params.scale, WHITE);
             }
-            DrawModel(*model, collision.point, ed.tool_params.scale, WHITE);
-            if (!ed.tool_params.about_to_place && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-              ed.tool_params.about_to_place = true;
-            }
-            if (ed.tool_params.about_to_place) {
+
+            if (!ui_is_hovered(ed.uiman, ed.nk_ctx)) {
               if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 ed.tool_params.about_to_place = false;
-                DEBUG("placing model and creating entity");
                 Entity* new_entity = entity_store_add(ed.entity_store);
                 new_entity->name = ed.browser->entries[ed.browser->selected].name;
                 new_entity->model = push_one(ed.entity_store->arena, Model);
